@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>property manager</title>
+    <link rel="stylesheet" href="./style.css">
+
+  </head>
+    
+  <body>
+  <h2>Property Management Tracker</h2>
+
+<div>
+  <input id="propertyName" placeholder="Property Name">
+  <input id="unitNumber" placeholder="Unit #">
+  <input id="unitType" placeholder="Type">
+  <input id="tenantName" placeholder="Tenant Name">
+  <input id="tenantContact" placeholder="Tenant Contact">
+  <input id="monthlyRent" placeholder="Monthly Rent (UGX)" type="number">
+  <select id="rentStatus">
+    <option value="Occupied">Occupied</option>
+    <option value="Vacant">Vacant</option>
+  </select>
+  <button onclick="addUnit()">Add Unit</button>
+</div>
+
+<hr>
+
+<div>
+  <input id="filterProperty" placeholder="Filter by Property">
+  <input id="filterType" placeholder="Filter by Type">
+  <select id="filterStatus">
+    <option value="">All</option>
+    <option value="Occupied">Occupied</option>
+    <option value="Vacant">Vacant</option>
+  </select>
+  <button onclick="renderTable()">Apply Filters</button>
+</div>
+
+<hr>
+
+<table border="1" width="100%">
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Unit #</th>
+      <th>Type</th>
+      <th>Tenant</th>
+      <th>Contact</th>
+      <th>Status</th>
+      <th>Monthly Rent (UGX)</th>
+      <th>Payments</th>
+      <th>Balance</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody id="unitTable"></tbody>
+</table>
+
+<p id="totals"></p>
+    <script  src="./script.js"></script>
+
+  </body>
+  
+</html>

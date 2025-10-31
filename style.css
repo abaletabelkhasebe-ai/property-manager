@@ -1,0 +1,196 @@
+// === PROPERTY MANAGER DASHBOARD (UGX) ===
+
+// Load units from local storage
+let units = JSON.parse(localStorage.getItem('units')) || [];
+const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+// === DOM References ===
+const addBtn = document.getElementById('addBtn');
+const exportBtn = document.getElementById('exportBtn');
+const filterProperty = document.getElementById('filterProperty');
+const filterType = document.getElementById('filterType');
+const filterStatus = document.getElementById('filterStatus');
+
+// === Event Listeners ===
+addBtn.addEventListener('click', addUnit);
+exportBtn.addEventListener('click', exportCSV);
+filterProperty.addEventListener('input', renderTable);
+filterType.addEventListener('input', renderTable);
+filterStatus.addEventListener('change', renderTable);
+
+// === ADD UNIT ===
+function addUnit() {
+  const unit = {
+    property: document.getElementById("propertyName").value.trim(),
+    unitNumber: document.getElementById("unitNumber").value.trim(),
+    type: document.getElementById("unitType").value.trim(),
+    tenant: document.getElementById("tenantName").value.trim(),
+    contact: document.getElementById("tenantContact").value.trim(),
+    monthlyRent: parseFloat(document.getElementById("monthlyRent").value) || 0,
+    status: document.getElementById("rentStatus").value,
+    payments: Array(12).fill(0)
+  };
+
+  if (!unit.property || !unit.unitNumber) {
+    alert("Property and Unit # are required.");
+    return;
+  }
+
+  units.push(unit);
+  saveUnits();
+  clearInputs();
+  renderTable();
+}
+
+// === CLEAR INPUTS ===
+function clearInputs() {
+  document.getElementById("propertyName").value = "";
+  document.getElementById("unitNumber").value = "";
+  document.getElementById("unitType").value = "";
+  document.getElementById("tenantName").value = "";
+  document.getElementById("tenantContact").value = "";
+  document.getElementById("monthlyRent").value = "";
+  document.getElementById("rentStatus").value = "Vacant";
+}
+
+// === SAVE TO LOCALSTORAGE ===
+function saveUnits() {
+  localStorage.setItem('units', JSON.stringify(units));
+}
+
+// === DELETE UNIT ===
+function deleteUnit(index) {
+  if (!confirm("Delete this unit?")) return;
+  units.splice(index, 1);
+  saveUnits();
+  renderTable();
+}
+
+// === UPDATE FIELDS OR PAYMENTS ===
+function updateCell(unitIndex, field, monthIndex = null, value) {
+  if (monthIndex !== null) {
+    units[unitIndex].payments[monthIndex] = parseFloat(value) || 0;
+  } else {
+    if (field === "monthlyRent") value = parseFloat(value) || 0;
+    units[unitIndex][field] = value;
+  }
+  saveUnits();
+  renderTable();
+}
+
+// === RENDER TABLE ===
+function renderTable() {
+  const table = document.getElementById("unitTable");
+  table.innerHTML = "";
+  let totalCollected = 0;
+  let vacantCount = 0;
+
+  const fp = filterProperty.value.toLowerCase();
+  const ft = filterType.value.toLowerCase();
+  const fs = filterStatus.value;
+
+  units.forEach((unit, index) => {
+    // Apply filters
+    if (!unit.property.toLowerCase().includes(fp)) return;
+    if (!unit.type.toLowerCase().includes(ft)) return;
+    if (fs !== "" && unit.status !== fs) return;
+
+    const row = table.insertRow();
+
+    // Editable fields
+    const fields = ["property", "unitNumber", "type", "tenant", "contact", "status", "monthlyRent"];
+    fields.forEach((field) => {
+      const cell = row.insertCell();
+      const input = document.createElement("input");
+      input.value = unit[field];
+      input.style.width = field === "monthlyRent" ? "80px" : "120px";
+      input.addEventListener('change', (e) => updateCell(index, field, null, e.target.value));
+      cell.appendChild(input);
+    });
+
+    // Payments section
+    const paymentsCell = row.insertCell();
+    months.forEach((month, mIndex) => {
+      const div = document.createElement("div");
+      div.style.marginBottom = "4px";
+
+      const label = document.createTextNode(`${month}: `);
+      const input = document.createElement("input");
+      input.type = "number";
+      input.value = unit.payments[mIndex];
+      input.className = "payment-input";
+      input.addEventListener("change", (e) => updateCell(index, "payments", mIndex, e.target.value));
+
+      div.appendChild(label);
+      div.appendChild(input);
+      paymentsCell.appendChild(div);
+    });
+
+    // Balance
+    const totalPaid = unit.payments.reduce((a, b) => a + b, 0);
+    totalCollected += totalPaid;
+    const balance = unit.monthlyRent * 12 - totalPaid;
+
+    const balanceCell = row.insertCell();
+    balanceCell.textContent = UGX ${balance.toLocaleString()};
+    if (balance === 0) balanceCell.className = "occupied";
+    else if (balance < unit.monthlyRent * 12) balanceCell.className = "partial";
+    else balanceCell.className = "vacant";
+
+    if (unit.status === "Vacant") vacantCount++;
+
+    // Delete button
+    const actionCell = row.insertCell();
+    const btn = document.createElement("button");
+    btn.textContent = "Delete";
+    btn.addEventListener("click", () => deleteUnit(index));
+    actionCell.appendChild(btn);
+  });
+
+  document.getElementById("totals").textContent =
+    Total collected this year: UGX ${totalCollected.toLocaleString()} | Vacant units: ${vacantCount};
+}
+
+// === EXPORT CSV ===
+function exportCSV() {
+  if (units.length === 0) {
+    alert("No units to export!");
+    return;
+  }
+
+  const headers = ["Property", "Unit #", "Type", "Tenant", "Contact", "Status", "Monthly Rent (UGX)", ...months.map(m => m + " (UGX)"), "Balance (UGX)"];
+  const rows = units.map(unit => {
+    const totalPaid = unit.payments.reduce((a, b) => a + b, 0);
+    const balance = unit.monthlyRent * 12 - totalPaid;
+    return [
+      unit.property,
+      unit.unitNumber,
+      unit.type,
+      unit.tenant,
+      unit.contact,
+      unit.status,
+      unit.monthlyRent,
+      ...unit.payments,
+      balance
+    ];
+  });
+
+  let csv = headers.join(",") + "\r\n";
+  rows.forEach(r => {
+    csv += r.join(",") + "\r\n";
+  });
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const date = new Date();
+  a.download = property_data_${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}.csv;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// === INITIAL RENDER ===
+renderTable();
